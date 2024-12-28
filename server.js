@@ -49,19 +49,32 @@ app.post("/chat", async (req, res) => {
   } else {
     // Fallback to OpenAI for open-ended queries
     try {
-      const completion = await openai.createCompletion({
-        model: "text-davinci-003",
-        prompt: `Answer based on this resume: ${JSON.stringify(
-          predefinedQA
-        )}\n\nQ: ${userPrompt}`,
+      const completion = await openai.completions.create({
+        model: "gpt-3.5-turbo", // Use the newer model
+        messages: [
+          { role: "system", content: "You are a helpful assistant." },
+          {
+            role: "user",
+            content: `Answer based on this resume: ${JSON.stringify(
+              predefinedQA
+            )}\n\nQ: ${userPrompt}`,
+          },
+        ],
         max_tokens: 100,
       });
-      res.send({ response: completion.data.choices[0].text.trim() });
+      res.send({ response: completion.choices[0].message.content.trim() });
     } catch (error) {
       console.error("OpenAI Error:", error);
-      res.status(500).send({
-        response: "I'm sorry, I couldn't process your request at the moment.",
-      });
+      if (error.code === "insufficient_quota") {
+        res.status(429).send({
+          response:
+            "You have exceeded your usage quota. Please check your billing details.",
+        });
+      } else {
+        res.status(500).send({
+          response: "I'm sorry, I couldn't process your request at the moment.",
+        });
+      }
     }
   }
 });
